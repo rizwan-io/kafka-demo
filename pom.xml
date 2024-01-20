@@ -5,8 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.rizwan</groupId>
-    <artifactId>kafka-basics</artifactId>
+    <artifactId>kafka-beginners-course</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <modules>
+        <module>kafka-basics</module>
+    </modules>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
