@@ -12,6 +12,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.opensearch.action.bulk.BulkRequest;
+import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.client.RequestOptions;
@@ -61,6 +63,8 @@ public class OpenSearchConsumer {
                 int recordCount = records.count();
                 logger.info("Received: " + recordCount + " record(s)");
 
+                BulkRequest bulkRequest = new BulkRequest();
+
                 for (ConsumerRecord<String, String> record : records) {
                     String id = extractId(record.value());
                     try {
@@ -68,13 +72,27 @@ public class OpenSearchConsumer {
                         IndexRequest indexRequest = new IndexRequest("wikimedia")
                                 .source(record.value(), XContentType.JSON).id(id);
 
-                        IndexResponse index = openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
-
-                        logger.info(index.getId());
+//                        IndexResponse index = openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
+                        bulkRequest.add(indexRequest);
+//                        logger.info(index.getId());
                     } catch (Exception e) {
 
                     }
 
+                }
+                if (bulkRequest.numberOfActions() > 0) {
+                    BulkResponse bulk = openSearchClient.bulk(bulkRequest, RequestOptions.DEFAULT);
+                    logger.info("Inserted: " + bulk.getItems().length + " record(s).");
+
+                    try {
+                        Thread.sleep(1000);
+                    } catch (Exception e) {
+
+                    }
+
+                    // commit offsets after batch has been consumed
+                    consumer.commitSync();
+                    logger.info("Offsets  have been commited");
                 }
             }
         }
@@ -102,7 +120,7 @@ public class OpenSearchConsumer {
         properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
-        properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         // create consumer
         return new KafkaConsumer<>(properties);
